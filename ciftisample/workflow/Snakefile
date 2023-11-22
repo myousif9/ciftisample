@@ -3,9 +3,6 @@
 from snakebids import bids, generate_inputs, get_wildcard_constraints
 import os
 
-print(os.getcwd())
-print(os.listdir('..'))
-
 configfile: workflow.source_path('../config/snakebids.yml')
 
 # Get input wildcards
@@ -17,7 +14,8 @@ inputs = generate_inputs(
     derivatives=config.get("derivatives", None),
     participant_label=config.get("participant_label", None),
     exclude_participant_label=config.get("exclude_participant_label", None),
-    validate=not config.get("plugins.validator.skip", False)
+    validate=not config.get("plugins.validator.skip", False),
+    pybids_config=workflow.source_path("../config/bids.json")
 )
 
 #this adds constraints to the bids naming
@@ -25,38 +23,42 @@ wildcard_constraints:  **get_wildcard_constraints(config['pybids_inputs'])
 
 #---- end snakebids boilerplate ------------------------------------------------
 
-
 rule samplevolume:
     input: 
         volume = inputs['volume'].path,
-        inner = inputs['volume'].path,
-        outer = inputs['volume'].path,
-        midthickness = inputs['volume'].path,
+        inner = inputs['inner'].path,
+        outer = inputs['outer'].path,
+        midthickness = inputs['mid'].path,
     output:
         bids(
             root=config['root'],
             datatype='surf',
-            desc='smooth{fwhm}mm',
-            suffix='bold',
-            extension='.nii.gz'
-            **inputs['bold'].wildcards
+            hemi = '{hemi}',
+            den = '{den}',
+            label = '{label}',
+            extension='.shape.gii',
+            **inputs['volume'].wildcards
         )
     container: config['singularity']['connectome_workbench']
     log:
         bids(
             root='logs',
-            suffix='samplevolume.log',
-            fwhm='{fwhm}',
-            **inputs['bold'].wildcards
+            hemi = '{hemi}',
+            den = '{den}',
+            label = '{label}',
+            extension='.log',
+            **inputs['volume'].wildcards
         )
-    params: sigma = lambda wildcards: f'{float(wildcards.fwhm)/2.355:0.2f}'
     shell: 'wb_command -volume-to-surface-mapping {input.volume} {input.midthickness} {output} -cubic -ribbon-constrained {input.inner} {input.outer} -gaussian '
-
 
 rule all:
     input:
-        inputs['bold'].expand(
-            rules.samplevolume.output,
-            fwhm = config['smoothing_fwhm'],
+        inputs['mid'].expand(
+            inputs['volume'].expand(
+                rules.samplevolume.output,
+                allow_missing=True
+
+                # suffix = input['volume'].suffix,
+            )
         )
     default_target: True

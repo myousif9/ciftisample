@@ -34,12 +34,16 @@ pybids_inputs:
       - task
       - run
       - desc
+      - space
+      - suffix
   
   inner:
     filters:
       suffix: 'inner'
-      extension: '.nii.gz'
-      datatype: 'surf'
+      extension: '.surf.gii'
+      # datatype: 'surf'
+      # label: 'hipp'
+      space: 'T1w'
     wildcards:
       - subject
       - session
@@ -49,12 +53,16 @@ pybids_inputs:
       - den
       - desc
       - hemi
+      - space
+      - label
   
   outer:
     filters:
       suffix: 'outer'
-      extension: '.nii.gz'
-      datatype: 'surf'
+      extension: '.surf.gii'
+      # datatype: 'surf'
+      # label: 'hipp'
+      space: 'T1w'
     wildcards:
       - subject
       - session
@@ -64,13 +72,16 @@ pybids_inputs:
       - den
       - desc
       - hemi
-      
+      - space
+      - label 
   
-  midthickness:
+  mid:
     filters:
       suffix: 'midthickness'
-      extension: '.nii.gz'
-      datatype: 'surf'
+      extension: '.surf.gii'
+      # datatype: 'surf'
+      label: 'hipp'
+      space: 'T1w'
     wildcards:
       - subject
       - session
@@ -80,7 +91,9 @@ pybids_inputs:
       - den
       - desc
       - hemi
-
+      - space
+      - label
+      
 #configuration for the command-line parameters to make available
 # passed on the argparse add_argument()
 parse_args:
