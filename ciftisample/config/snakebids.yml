@@ -146,9 +146,10 @@ parse_args:
     action: "store_true"
     default: False
 
-  # --smoothing_fwhm:
-  #   nargs: '+'
-  #   required: True
+  --smoothing_kernel_mm:
+    default: 2
+    nargs: '+'
+    required: False
 
 
 #--- workflow specific configuration -- below is just an example:
@@ -157,4 +158,4 @@ parse_args:
 #singularity containers
 singularity:
     connectome_workbench: 'docker://khanlab/autotop_deps:v0.4.2'
-    fsl: 'docker://brainlife/fsl/6.0.0'
+    # fsl: 'docker://brainlife/fsl/6.0.0'

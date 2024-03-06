@@ -14,7 +14,7 @@ inputs = generate_inputs(
     derivatives=config.get("derivatives", None),
     participant_label=config.get("participant_label", None),
     exclude_participant_label=config.get("exclude_participant_label", None),
-    validate=not config.get("plugins.validator.skip", False),
+    validate=False,
     pybids_config=workflow.source_path("../config/bids.json")
 )
 
@@ -22,6 +22,19 @@ inputs = generate_inputs(
 wildcard_constraints:  **get_wildcard_constraints(config['pybids_inputs'])
 
 #---- end snakebids boilerplate ------------------------------------------------
+
+subject_inner_list = inputs['inner'].zip_lists['subject']
+subject_mid_list = inputs['mid'].zip_lists['subject']
+subject_outer_list = inputs['outer'].zip_lists['subject'] 
+
+subjects_vol =  set(inputs['volume'].zip_lists['subject'])
+subjects_inner = set(subject_inner_list)
+subjects_mid = set(subject_mid_list)
+subjects_outer = set(subject_outer_list)
+
+subject_intersect =  list(subjects_vol.intersection(subjects_inner).intersection(subjects_mid).intersection(subjects_outer))
+
+subjects = [sub for idx, sub in enumerate(subject_intersect) if ((subject_inner_list.count(sub) >= 2) and (subject_mid_list.count(sub) >= 2) and (subject_outer_list.count(sub) >= 2))]
 
 rule samplevolume:
     input: 
@@ -40,6 +53,11 @@ rule samplevolume:
             **inputs['volume'].wildcards
         )
     container: config['singularity']['connectome_workbench']
+    threads: 4
+    resources:
+        mem_mb=8000,
+        time=180,
+    group: 'subj'
     log:
         bids(
             root='logs',
@@ -49,16 +67,97 @@ rule samplevolume:
             extension='.log',
             **inputs['volume'].wildcards
         )
-    shell: 'wb_command -volume-to-surface-mapping {input.volume} {input.midthickness} {output} -cubic -ribbon-constrained {input.inner} {input.outer} -gaussian '
+    shell: 'wb_command -volume-to-surface-mapping {input.volume} {input.midthickness} {output} -ribbon-constrained {input.inner} {input.outer} -gaussian 1 '
+
+rule smoothing:
+    input:
+        metric = rules.samplevolume.output[0],
+        midthickness = inputs['mid'].path,
+    output:
+        bids(
+            root=config['root'],
+            datatype='surf',
+            hemi = '{hemi}',
+            den = '{den}',
+            smooth = '{smooth}mm',
+            label = '{label}',
+            extension='.shape.gii',
+            **inputs['volume'].wildcards
+        )
+    container: config['singularity']['connectome_workbench']
+    threads: 4
+    resources:
+        mem_mb=8000,
+        time=180,
+    group: 'subj'
+    shell: 'wb_command -cifti-smoothing {input.midthickness} {input.metric} {wildcards.smooth} {output}'
+
+rule make_dense_scalar:
+    input:
+        smoothed_hemiL = expand(rules.smoothing.output[0], hemi = 'L', allow_missing=True),
+        smoothed_hemiR = expand(rules.smoothing.output[0], hemi = 'R', allow_missing=True),
+        unsmoothed_hemiL = expand(rules.samplevolume.output[0], hemi = 'L', allow_missing=True),
+        unsmoothed_hemiR = expand(rules.samplevolume.output[0], hemi = 'R', allow_missing=True),
+    params:
+        smoothed_out = bids(
+            root=config['root'],
+            datatype='surf',
+            den = '{den}',
+            smooth = '{smooth}mm',
+            label = '{label}',
+            extension='.dscalar.nii',
+            **inputs['volume'].wildcards
+        ),
+        unsmoothed_out = bids(
+            root=config['root'],
+            datatype='surf',
+            den = '{den}',
+            label = '{label}',
+            extension='.dscalar.nii',
+            **inputs['volume'].wildcards
+        )
+    output:
+        temp(
+            touch(
+                bids(
+                    root=config['root'],
+                    datatype='surf',
+                    den = '{den}',
+                    smooth = '{smooth}mm',
+                    label = '{label}',
+                    extension='.done',
+                    **inputs['volume'].wildcards
+                ),
+            )
+        )
+    container: config['singularity']['connectome_workbench']
+    threads: 4
+    resources:
+        mem_mb=8000,
+        time=180,
+    group: 'subj'
+
+    shell: 
+        """
+        if [ ! -f {params.unsmoothed_out} ]; then
+            wb_command -cifti-create-dense-scalar {params.unsmoothed_out} -left-metric {input.unsmoothed_hemiL} -right-metric {input.unsmoothed_hemiR}
+        fi
+
+        wb_command -cifti-create-dense-scalar {params.smoothed_out} -left-metric {input.smoothed_hemiL} -right-metric {input.smoothed_hemiR}
+        """
 
 rule all:
     input:
         inputs['mid'].expand(
             inputs['volume'].expand(
-                rules.samplevolume.output,
+                expand(
+                    rules.make_dense_scalar.output,
+                    smooth = list(config['smoothing_kernel_mm']),
+                    subject=subjects,
+                    allow_missing=True
+                    ),
                 allow_missing=True
-
-                # suffix = input['volume'].suffix,
             )
         )
+
     default_target: True
