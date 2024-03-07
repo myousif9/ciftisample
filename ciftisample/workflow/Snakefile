@@ -90,7 +90,7 @@ rule smoothing:
         mem_mb=8000,
         time=180,
     group: 'subj'
-    shell: 'wb_command -cifti-smoothing {input.midthickness} {input.metric} {wildcards.smooth} {output}'
+    shell: 'wb_command -metric-smoothing {input.midthickness} {input.metric} {wildcards.smooth} {output}'
 
 rule make_dense_scalar:
     input:
