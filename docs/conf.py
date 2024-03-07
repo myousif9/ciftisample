@@ -17,9 +17,9 @@
 # -- Project information -----------------------------------------------------
 
 
-project = "ciftisample"
-copyright = "2023, ciftisample"
-author = "ciftisample"
+project = "hipposample"
+copyright = "2023, hipposample"
+author = "hipposample"
 
 
 # -- General configuration ---------------------------------------------------

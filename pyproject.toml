@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "ciftisample"
+name = "hipposample"
 version = "0.1.0"
 description = "Tool for sampling volume images across bids datasets to surface space."
 authors = ["Mohamed Yousif <myousif9@uwo.ca>"]

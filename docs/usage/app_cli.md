@@ -1,7 +1,7 @@
 ## Command line interface
 
 ```{argparse}
-:filename: ../ciftisample/run.py
+:filename: ../hipposample/run.py
 :func: get_parser
-:prog: ciftisample
+:prog: hipposample
 ```

@@ -34,7 +34,7 @@ setuptools.setup(
     ],
     entry_points={
         "console_scripts": [
-            "ciftisample=ciftisample.run:main"
+            "hipposample=hipposample.run:main"
         ]
     },
     install_requires=[
